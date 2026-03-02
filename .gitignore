@@ -1,0 +1,29 @@
+# OS / éditeur
+.DS_Store
+.idea/
+.vscode/
+
+# Environnements virtuels Python
+venv/
+.venv/
+env/
+.env/
+
+# Fichiers Python générés
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Logs / temporaires
+*.log
+*.tmp
+*.swp
+
+# Téléchargements de vidéos (trop lourds pour le repo)
+downloads/
+
+# Secrets locaux (ne jamais les versionner)
+client_secret.json
+token.json
+

@@ -1,0 +1,39 @@
+name: Schedule YouTube Shorts
+
+on:
+  schedule:
+    # GitHub Actions utilise l'heure UTC.
+    # Ajuste ces heures si tu veux coller exactement à ton fuseau.
+    - cron: "0 6 * * *"   # ~ 7h locales (UTC+1)
+    - cron: "0 16 * * *"  # ~ 17h locales (UTC+1)
+  workflow_dispatch:
+
+jobs:
+  upload-shorts:
+    runs-on: ubuntu-latest
+
+    env:
+      MAX_UPLOADS_PER_RUN: "10"
+      CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
+      TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Recreate Google OAuth files
+        run: |
+          echo "$CLIENT_SECRETS_JSON" > client_secrets.json
+          echo "$TOKEN_JSON" > token.json
+
+      - name: Upload up to 10 Shorts
+        run: python upload_to_youtube.py
+
