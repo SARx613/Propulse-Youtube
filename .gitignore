@@ -27,3 +27,6 @@ downloads/
 client_secret.json
 token.json
 
+# Cookies YouTube exportés pour yt-dlp (stockés en secret GitHub)
+youtube_cookies.txt
+

@@ -18,7 +18,8 @@ def _shorts_match_filter(info_dict, *, incomplete: bool = False):
     if duration is None:
         return None
 
-    if duration <= 300:
+    # YouTube Shorts: <= 60 secondes
+    if duration <= 60:
         return None
 
     return "duration > 60s (pas un Short)"
@@ -36,6 +37,7 @@ def download_new_shorts(channel_url: str) -> None:
     base_dir = Path(__file__).resolve().parent
     downloads_dir = base_dir / "downloads"
     archive_file = base_dir / "archive.txt"
+    cookies_file = base_dir / "youtube_cookies.txt"
 
     os.makedirs(downloads_dir, exist_ok=True)
 
@@ -52,9 +54,15 @@ def download_new_shorts(channel_url: str) -> None:
         "format": "mp4",
         # Filtre Short : on fournit une fonction (API Python)
         "match_filter": _shorts_match_filter,
+        # Activer un runtime JS (YouTube extraction devient plus stricte)
+        "js_runtimes": {"node": {}},
         # Un peu de logs dans la console
         "verbose": True,
     }
+
+    # Si un fichier cookies est fourni (GitHub Actions), on l'utilise
+    if cookies_file.exists():
+        ydl_opts["cookiefile"] = str(cookies_file)
 
     print(f"Téléchargement des nouveaux Shorts depuis : {channel_url}")
 

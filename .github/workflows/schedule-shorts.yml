@@ -16,10 +16,16 @@ jobs:
       MAX_UPLOADS_PER_RUN: "10"
       CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
       TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
+      YTDLP_COOKIES: ${{ secrets.YTDLP_COOKIES }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Node (yt-dlp JS runtime)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,14 +35,55 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Restore state (archive + uploaded list)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          run_id="$(gh run list --workflow "Schedule YouTube Shorts" --status success --limit 1 --json databaseId -q '.[0].databaseId')"
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" --name propulse-state --dir .
+          fi
+          set -e
+
+      - name: Write yt-dlp cookies file
+        run: |
+          python - <<'PY'
+          import os
+          cookies = os.environ.get("YTDLP_COOKIES", "").strip("\n")
+          if cookies:
+              with open("youtube_cookies.txt", "w", encoding="utf-8") as f:
+                  f.write(cookies + "\n")
+          PY
+
       - name: Download latest Shorts from channels
         run: python -c "from shorts_watcher import download_all_channels_once; download_all_channels_once()"
 
       - name: Recreate Google OAuth files
         run: |
-          echo "$CLIENT_SECRETS_JSON" > client_secrets.json
-          echo "$TOKEN_JSON" > token.json
+          python - <<'PY'
+          import os
+          for name, path in [("CLIENT_SECRETS_JSON", "client_secrets.json"), ("TOKEN_JSON", "token.json")]:
+              val = os.environ.get(name, "")
+              if not val:
+                  raise SystemExit(f"Missing required secret: {name}")
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(val)
+                  if not val.endswith("\n"):
+                      f.write("\n")
+          PY
 
       - name: Upload up to 10 Shorts
         run: python upload_to_youtube.py
+
+      - name: Save state (archive + uploaded list)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: propulse-state
+          path: |
+            archive.txt
+            uploaded_videos.txt
+          if-no-files-found: ignore
+          retention-days: 90
 
