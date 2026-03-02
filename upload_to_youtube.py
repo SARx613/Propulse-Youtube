@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 import google.auth.exceptions
+from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -57,14 +58,23 @@ def get_youtube_service():
         except (google.auth.exceptions.GoogleAuthError, ValueError):
             creds = None
 
-    # Si pas de credentials valides, on lance le flow OAuth
+    # Si pas de credentials valides, on tente un refresh puis, en dernier recours,
+    # on lance le flow OAuth (mais uniquement en local, pas en CI GitHub Actions).
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             try:
-                creds.refresh(Request())  # type: ignore[name-defined]
+                creds.refresh(Request())
             except Exception:
                 creds = None
         if not creds:
+            # Dans GitHub Actions, on NE DOIT PAS lancer de flow interactif
+            # (pas de navigateur). On s'arrête donc avec un message explicite.
+            if os.getenv("GITHUB_ACTIONS") == "true":
+                raise RuntimeError(
+                    "Impossible d'obtenir un token YouTube valide dans GitHub Actions.\n"
+                    "Vérifie que le secret TOKEN_JSON contient le contenu complet de "
+                    "ton fichier token.json généré en local après consent OAuth."
+                )
             flow = InstalledAppFlow.from_client_secrets_file(
                 str(BASE_DIR / "client_secrets.json"), SCOPES
             )
