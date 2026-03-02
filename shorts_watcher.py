@@ -36,6 +36,26 @@ def load_channels() -> list[str]:
     return channels
 
 
+def download_all_channels_once() -> None:
+    """
+    Télécharge une fois les nouveaux Shorts pour toutes les chaînes
+    listées dans channels.txt (sans boucle infinie).
+    Pensé pour être utilisé dans un job GitHub Actions.
+    """
+    print(f"Téléchargement one-shot depuis les chaînes de {CHANNELS_FILE.name}.")
+    channels = load_channels()
+    if not channels:
+        print("Aucune chaîne définie dans channels.txt.")
+        return
+
+    for channel_url in channels:
+        print(f"- Téléchargement pour la chaîne : {channel_url}")
+        try:
+            download_new_shorts(channel_url)
+        except Exception as exc:
+            print(f"Erreur pendant le téléchargement pour {channel_url} : {exc}")
+
+
 def watch_channels_forever() -> None:
     """
     Boucle simple qui vérifie régulièrement toutes les chaînes de channels.txt
