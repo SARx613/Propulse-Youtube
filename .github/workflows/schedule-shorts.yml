@@ -13,10 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      MAX_UPLOADS_PER_RUN: "10"
+      # 50 uploads par exécution (matin ou soir)
+      MAX_UPLOADS_PER_RUN: "50"
+      # 100 uploads maximum par jour (sécurité anti-ban côté API)
+      MAX_UPLOADS_PER_DAY: "100"
       CLIENT_SECRETS_JSON: ${{ secrets.CLIENT_SECRETS_JSON }}
       TOKEN_JSON: ${{ secrets.TOKEN_JSON }}
       YTDLP_COOKIES: ${{ secrets.YTDLP_COOKIES }}
+      # PO Token + client mweb pour suivre les nouveautés YouTube
+      # (optionnel mais recommandé pour yt-dlp en 2025+)
+      YT_PO_TOKEN: ${{ secrets.YT_PO_TOKEN }}
+      # Remote components EJS pour résoudre certains challenges JS
+      # cf. https://github.com/yt-dlp/yt-dlp/wiki/EJS
+      YT_REMOTE_COMPONENTS: "ejs:github"
 
     steps:
       - name: Checkout repository

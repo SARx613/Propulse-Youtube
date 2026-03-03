@@ -41,7 +41,8 @@ def download_new_shorts(channel_url: str) -> None:
 
     os.makedirs(downloads_dir, exist_ok=True)
 
-    ydl_opts = {
+    # Options de base, communes local + CI
+    ydl_opts: dict = {
         # Modèle du chemin de sortie
         "outtmpl": str(
             downloads_dir / "%(uploader)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s"
@@ -54,7 +55,8 @@ def download_new_shorts(channel_url: str) -> None:
         "format": "mp4",
         # Filtre Short : on fournit une fonction (API Python)
         "match_filter": _shorts_match_filter,
-        # Activer un runtime JS (YouTube extraction devient plus stricte)
+        # Activer un runtime JS (YouTube extraction devient plus stricte).
+        # Local : tu peux ignorer si tu n'as pas Node/QuickJS.
         "js_runtimes": {"node": {}},
         # Un peu de logs dans la console
         "verbose": True,
@@ -63,6 +65,54 @@ def download_new_shorts(channel_url: str) -> None:
     # Si un fichier cookies est fourni (GitHub Actions), on l'utilise
     if cookies_file.exists():
         ydl_opts["cookiefile"] = str(cookies_file)
+
+    # --- Options avancées YouTube (PO Token, client mweb, remote-components) ---
+    #
+    # Tout est contrôlé par des variables d'environnement pour que tu puisses
+    # facilement activer/désactiver ces mécanismes en local ou en CI.
+
+    extractor_args: dict = {}
+
+    # 1) Client mweb + PO Token (recommandé par yt-dlp pour YouTube en 2025+)
+    #
+    #   YT_PO_TOKEN : valeur du PO Token au format attendu par yt-dlp
+    #   (la doc recommande "mweb+PO_TOKEN_VALUE").
+    #
+    #   En pratique :
+    #     export YT_PO_TOKEN="mweb+...ton-token..."
+    #
+    po_token_env = os.getenv("YT_PO_TOKEN")
+    if po_token_env:
+        extractor_args.setdefault("youtube", {})
+        # Forcer le client mweb
+        extractor_args["youtube"].setdefault("player_client", []).append("mweb")
+        # PO Token pour ce client
+        extractor_args["youtube"].setdefault("po_token", []).append(po_token_env)
+
+    if extractor_args:
+        ydl_opts["extractor_args"] = extractor_args
+
+    # 2) Remote components (EJS) pour résoudre les challenges JS si nécessaire
+    #
+    #   YT_REMOTE_COMPONENTS, ex: "ejs:github" ou "ejs:npm"
+    #
+    remote_components_env = os.getenv("YT_REMOTE_COMPONENTS")
+    if remote_components_env:
+        rc_map: dict = {}
+        for part in remote_components_env.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if ":" not in part:
+                continue
+            kind, value = part.split(":", 1)
+            kind = kind.strip()
+            value = value.strip()
+            if not kind or not value:
+                continue
+            rc_map.setdefault(kind, []).append(value)
+        if rc_map:
+            ydl_opts["remote_components"] = rc_map
 
     print(f"Téléchargement des nouveaux Shorts depuis : {channel_url}")
 
