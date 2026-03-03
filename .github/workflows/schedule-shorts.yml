@@ -50,11 +50,22 @@ jobs:
         run: |
           python - <<'PY'
           import os
-          cookies = os.environ.get("YTDLP_COOKIES", "").strip("\n")
+          cookies = os.environ.get("YTDLP_COOKIES", "")
           if cookies:
               with open("youtube_cookies.txt", "w", encoding="utf-8") as f:
-                  f.write(cookies + "\n")
+                  f.write(cookies.strip() + "\n")
           PY
+
+      - name: Check cookies file (required for YouTube in CI)
+        run: |
+          if [ ! -s youtube_cookies.txt ]; then
+            echo "::error::Le fichier youtube_cookies.txt est absent ou vide."
+            echo "Ajoute le secret YTDLP_COOKIES dans Settings → Secrets and variables → Actions :"
+            echo "  1. Exporte tes cookies YouTube (format Netscape) depuis ton navigateur."
+            echo "  2. New repository secret → Name: YTDLP_COOKIES → Value: tout le contenu du fichier."
+            exit 1
+          fi
+          echo "Cookies file OK ($(wc -c < youtube_cookies.txt) bytes)."
 
       - name: Download latest Shorts from channels
         run: python -c "from shorts_watcher import download_all_channels_once; download_all_channels_once()"
